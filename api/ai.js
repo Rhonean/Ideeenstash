@@ -1,19 +1,43 @@
 // Ideeënstash — AI-proxy. Houdt de Anthropic API-sleutel op de server.
-// Omgevingsvariabelen: ANTHROPIC_API_KEY (verplicht), APP_CODE (toegangscode),
-// optioneel MODEL_DEFAULT en MODEL_QUICK.
+// Omgevingsvariabelen: ANTHROPIC_API_KEY (verplicht voor AI).
+// Optioneel: APP_CODE (alleen als je toch een toegangscode wilt), MODEL_DEFAULT, MODEL_QUICK,
+// RATE_PER_HOUR (per gebruiker, standaard 30) en RATE_PER_DAY (totaal per serverinstantie, standaard 400).
 export const config = { maxDuration: 120 };
 
 const MAX_PROMPT = 80000;
+const PER_HOUR = parseInt(process.env.RATE_PER_HOUR || "30", 10);
+const PER_DAY = parseInt(process.env.RATE_PER_DAY || "400", 10);
+// Eenvoudige limiet in het geheugen van de serverinstantie (best effort).
+const hits = new Map();
+let day = "", dayCount = 0;
+function limited(ip) {
+  const now = Date.now(), today = new Date().toISOString().slice(0, 10);
+  if (today !== day) { day = today; dayCount = 0; hits.clear(); }
+  if (dayCount >= PER_DAY) return true;
+  const list = (hits.get(ip) || []).filter(t => now - t < 3600e3);
+  if (list.length >= PER_HOUR) { hits.set(ip, list); return true; }
+  list.push(now); hits.set(ip, list); dayCount++;
+  return false;
+}
+function sameOrigin(req) {
+  const host = req.headers["x-forwarded-host"] || req.headers.host || "";
+  const src = req.headers.origin || req.headers.referer || "";
+  if (!src) return false;
+  try { return new URL(src).host === host; } catch { return false; }
+}
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST");
     return res.status(405).json({ error: "method_not_allowed" });
   }
+  if (!sameOrigin(req)) return res.status(403).json({ error: "forbidden" });
   const appCode = process.env.APP_CODE || "";
-  if (!appCode || req.headers["x-app-code"] !== appCode) {
+  if (appCode && req.headers["x-app-code"] !== appCode) {
     return res.status(401).json({ error: "no_code" });
   }
+  const ip = String(req.headers["x-forwarded-for"] || "").split(",")[0].trim() || "onbekend";
+  if (limited(ip)) return res.status(429).json({ error: "rate_limited" });
   const key = process.env.ANTHROPIC_API_KEY;
   if (!key) return res.status(503).json({ error: "not_configured" });
 

@@ -9,7 +9,7 @@ Persoonlijke leesapp in de stijl van Deepstash: kernideeën uit 98 non-fictieboe
 
 ## Instellingen (Vercel → Project → Settings → Environment Variables)
 - `ANTHROPIC_API_KEY` — je Anthropic API-sleutel (verplicht voor de AI-functies).
-- `APP_CODE` — toegangscode die de app eenmalig per toestel vraagt.
+- `APP_CODE` — optioneel: alleen invullen als je toch een toegangscode wilt.
 - Optioneel: `MODEL_DEFAULT`, `MODEL_QUICK` om andere modellen te kiezen.
 
 Zonder API-sleutel werkt de app gewoon; alleen de AI-functies zijn dan uit.

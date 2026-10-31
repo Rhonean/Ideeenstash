@@ -389,7 +389,7 @@ function renderOb(){
 }
 
 /* ---------- Claude: aanbevelingen en genereren ---------- */
-const ERR={no_code:"Zonder toegangscode werken de AI-functies niet. De kant-en-klare stashes kun je gewoon lezen.",not_configured:"De AI-functies zijn nog niet ingesteld: er ontbreekt een API-sleutel op de server.",offline:"Geen verbinding. Controleer je internet en probeer het opnieuw.",rate_limited:"Even te veel verzoeken. Probeer het over een paar minuten opnieuw.",upstream_error:"De AI-dienst gaf een fout. Probeer het zo opnieuw.",refused:"Dit verzoek werd geweigerd. Probeer een andere titel.",invalid_json:"Het antwoord was onvolledig. Probeer het opnieuw.",prompt_too_large:"De tekst is te lang. Plak een kortere tekst."};
+const ERR={no_code:"Voor de AI-functies is een toegangscode nodig. De kant-en-klare stashes kun je gewoon lezen.",not_configured:"De AI-functies zijn nog niet ingesteld: er ontbreekt een API-sleutel op de server.",offline:"Geen verbinding. Controleer je internet en probeer het opnieuw.",rate_limited:"Je hebt de limiet voor nu bereikt. Probeer het over een uur opnieuw.",forbidden:"Deze aanvraag werd geweigerd. Open de app via het gewone adres.",upstream_error:"De AI-dienst gaf een fout. Probeer het zo opnieuw.",refused:"Dit verzoek werd geweigerd. Probeer een andere titel.",invalid_json:"Het antwoord was onvolledig. Probeer het opnieuw.",prompt_too_large:"De tekst is te lang. Plak een kortere tekst."};
 const errMsg=e=>e?.code==="cancelled"?"Gestopt.":(ERR[e?.code]||"Er ging iets mis. Probeer het opnieuw.");
 /* AI via de eigen serverfunctie /api/ai, beveiligd met een toegangscode */
 function getCode(){try{return localStorage.getItem("ideeenstash-code")||""}catch{return ""}}
@@ -413,8 +413,7 @@ function askCode(wrong){
 function aiErr(code,message,text){const e={code,message};if(text)e.text=text;return e}
 async function aiCall(input,opts={},retried){
   if(opts.signal?.aborted)throw aiErr("cancelled","");
-  let code=getCode();
-  if(!code){code=await askCode(false);if(!code)throw aiErr("no_code","")}
+  const code=getCode();
   let res;
   try{res=await fetch("/api/ai",{method:"POST",headers:{"content-type":"application/json","x-app-code":code},body:JSON.stringify({prompt:input,tier:opts.modelTier||"default",maxTokens:opts.maxTokens||2500}),signal:opts.signal})}
   catch(e){throw aiErr(opts.signal?.aborted?"cancelled":"offline","")}
