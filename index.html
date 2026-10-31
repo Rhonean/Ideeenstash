@@ -621,6 +621,7 @@ let lastPos=-1;
 function onPos(){if(!rBook||!rSlides)return;const b=rBook,n=b.ideas.length,i=curSlide();
   R.querySelectorAll(".rprog i").forEach((p,k)=>p.classList.toggle("on",k<i));
   if(i===lastPos)return;lastPos=i;
+  if(b.live)return;
   const seen=Math.min(i,n),had=S.prof.progress[b.id]||0;
   if(seen>had){for(let k=had;k<seen;k++)countRead();S.prof.progress={...S.prof.progress,[b.id]:seen};profChanged()}}
 function bindReader(){
@@ -726,8 +727,13 @@ async function loadShared(b){
   if(!R.hidden&&rBook===b)liveDone();render();
 }
 function liveMeta(){R.style.setProperty("--tc",topicColor(rBook.topic));document.getElementById("rcover").innerHTML=coverInner(rBook);bindReader()}
-function liveAdd(i){const end=document.getElementById("rend");end.insertAdjacentHTML("beforebegin",ideaSlide(rBook,i));
-  R.querySelector(".rprog").insertAdjacentHTML("beforeend","<i></i>");bindReader();onPos()}
+function liveAdd(i){
+  // Onthoud waar de lezer staat: invoegen mag hem niet naar het einde laten springen.
+  const cur=liveCur!=null?liveCur:curSlide();
+  const end=document.getElementById("rend");end.insertAdjacentHTML("beforebegin",ideaSlide(rBook,i));
+  R.querySelector(".rprog").insertAdjacentHTML("beforeend","<i></i>");bindReader();
+  liveCur=cur;goSlide(cur);requestAnimationFrame(()=>{goSlide(cur);liveCur=null;onPos()})}
+let liveCur=null;
 function liveDone(){R.querySelectorAll(".slide[data-i] .kicker").forEach(k=>{const i=+k.parentElement.dataset.i;k.textContent=`Idee ${i+1} van ${rBook.ideas.length}`});
   document.getElementById("rcover").innerHTML=coverInner(rBook);document.getElementById("rend").innerHTML=endInner(rBook);
   const saved=S.books.find(x=>x.id===rBook.id);if(saved)rBook=saved;bindReader();lastPos=-1;onPos()}
