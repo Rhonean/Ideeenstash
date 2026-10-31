@@ -1,0 +1,17 @@
+{
+  "name": "Ideeënstash",
+  "short_name": "Ideeënstash",
+  "description": "Kernideeën uit de beste non-fictieboeken, in een paar minuten per dag.",
+  "lang": "nl",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#eef0ec",
+  "theme_color": "#1e4d47",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ]
+}
