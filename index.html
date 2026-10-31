@@ -330,6 +330,7 @@ function renderHome(){
   document.getElementById("bk-load").onclick=()=>document.getElementById("bk-file").click();
   document.getElementById("bk-file").onchange=loadBackup;
   document.getElementById("edit").onclick=()=>openOnboarding(true);
+  schedulePrefetch([...busy,...recs]);
   bindOpen();bindAi();
 }
 
@@ -511,6 +512,7 @@ function renderDiscover(){
   document.getElementById("go").onclick=()=>{const q=document.getElementById("q").value.trim();if(!q)return;
     if(mode==="boek"){const hit=matchCatalog(q)||S.books.find(b=>[b.title,b.titleNl].some(t=>t&&norm(t)===norm(q)));if(hit){openReader(hit.id);return}makeBook(q)}
     else makeText(q,(document.getElementById("src")||{}).value||"")};
+  if(aiTopic)schedulePrefetch(tb.slice(0,6));
   const ol=document.getElementById("openlive");if(ol)ol.onclick=()=>openReader(gen.book.id);
   main.querySelectorAll("[data-t]").forEach(b=>b.onclick=()=>{aiTopic=aiTopic===b.dataset.t?null:b.dataset.t;renderDiscover()});
   main.querySelectorAll("[data-t2]").forEach(b=>b.onclick=()=>{aiTopic=b.dataset.t2;renderDiscover();main.scrollTop=0});
@@ -586,7 +588,7 @@ function ideaSlide(b,i){const it=b.ideas[i],sid=b.id+"_"+i,on=S.saved.some(s=>s.
     <div class="deep" id="deep-${i}" hidden></div>
     <div class="acts"><button data-save="${i}" aria-pressed="${on}"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 4h12v16l-6-4-6 4z"/></svg><span>${on?"Bewaard":"Bewaar"}</span></button>
       <button data-deep="${i}" aria-expanded="false"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h10"/></svg><span>${S.deep[sid]?"Toon verdieping":"Lees dieper"}</span></button></div></section>`}
-function coverInner(b){return `<div class="kicker">${esc(b.topic)} · ${b.live?"wordt gemaakt":b.ideas.length+" ideeën"}</div>
+function coverInner(b){return `<div class="kicker">${esc(b.topic)} · ${b.live?(b.ideas.length?"wordt gemaakt":"wordt klaargezet…"):b.ideas.length+" ideeën"}</div>
   <h1>${esc(b.titleNl||b.title)}</h1>
   <p class="meta">${b.titleNl?esc(b.title)+"<br>":""}${esc(b.author||"")}${b.year?" · "+esc(b.year):""}${b.source?" · "+esc(b.source):""}</p>
   ${b.summary?`<p>${esc(b.summary)}</p>`:""}
@@ -681,7 +683,25 @@ async function streamGet(url,onText){
   if(tail.startsWith("ERR:"))throw aiErr("upstream_error",tail.slice(4),text);
   return {text,truncated:tail.startsWith("TRUNC")};
 }
+/* Aanbevolen boeken alvast op de achtergrond klaarzetten */
+const PREF={};let prefRunning=0;const prefQueue=[];
+function prefetch(books){
+  for(const b of books){if(!b.lazy||b.ideas.length||b.unknown||PREF[b.id]||prefQueue.includes(b))continue;prefQueue.push(b)}
+  pumpPrefetch();
+}
+function pumpPrefetch(){
+  while(prefRunning<2&&prefQueue.length){const b=prefQueue.shift();if(b.ideas.length||PREF[b.id])continue;prefRunning++;
+    PREF[b.id]=fetch("/api/stash?warm=1&id="+encodeURIComponent(b.id)).then(r=>r.ok?r.json():null).then(j=>{
+      if(j&&j.data&&!b.ideas.length&&!b.live){S.shared={...S.shared,[b.id]:j.data};lsSet();applyShared(b,j.data)}
+    }).catch(()=>{}).finally(()=>{prefRunning--;delete PREF[b.id];pumpPrefetch()});}
+}
+let prefTimer=null;
+function schedulePrefetch(books){clearTimeout(prefTimer);prefTimer=setTimeout(()=>prefetch(books.filter(b=>b.lazy&&!b.ideas.length&&!b.unknown).slice(0,4)),1500)}
 async function loadShared(b){
+  if(PREF[b.id]){b.live=true;openReader(b.id,0);await PREF[b.id];b.live=false;
+    if(b.ideas.length){if(!R.hidden&&rBook===b)openReader(b.id,0);return}
+    if(b.unknown){if(!R.hidden&&rBook===b)closeReader();toast("Van dit boek kan geen betrouwbare stash worden gemaakt");return}
+    if(!R.hidden&&rBook===b)closeReader()}
   if(gen&&!gen.done){toast("Er wordt al een stash gemaakt. Even geduld.");return}
   b.live=true;b.ideas=[];b.summary="";
   const g=gen={book:b,done:false};
