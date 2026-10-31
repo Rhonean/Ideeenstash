@@ -76,7 +76,7 @@ export default async function handler(req, res) {
     const status = upstream.status;
     let msg = "";
     try { msg = (await upstream.json())?.error?.message || ""; } catch {}
-    const error = status === 429 || status === 529 ? "rate_limited" : status === 401 ? "not_configured" : "upstream_error";
+    const error = status === 429 || status === 529 ? "rate_limited" : status === 401 ? "bad_key" : (status === 400 && /credit|balance/i.test(msg)) ? "no_credit" : status === 404 ? "bad_model" : "upstream_error";
     return res.status(status === 429 || status === 529 ? 429 : 502).json({ error, message: msg.slice(0, 300) });
   }
 
